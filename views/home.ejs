@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Workflow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #005f5f;
+            color: white;
+            padding: 10px 20px;
+        }
+        h1 {
+            margin: 0;
+        }
+        .container {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #e1e1e1;
+            margin-right: 5px;
+            border-radius: 5px;
+        }
+        .tab.active {
+            background: #005f5f;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f1f1f1;
+        }
+        .status {
+            font-weight: bold;
+        }
+        .new { color: blue; background-color: #e6f7ff; }
+        .pending { color: orange; background-color: #fff3e6; }
+        .completed { color: green; background-color: #e6ffe6; }
+        .rejected { color: red; background-color: #ffe6e6; }
+        .search-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #e2f0d9;
+            padding: 10px;
+            border-radius: 5px;
+            flex: 1;
+            margin-right: 10px;
+            text-align: center;
+        }
+        .stat-card:last-child {
+            margin-right: 0;
+        }
+        .action-btn {
+            margin-top: 10px;
+        }
+        input[type="text"], input[type="date"], select, textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #005f5f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004747;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bank Workflow</h1>
+        <button onclick="document.getElementById('addRequestModal').style.display='block'">Add Request</button>
+    </header>
+
+    <div class="container">
+        <h2>Statistics</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Requests</h3>
+                <p id="totalRequests">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>New Requests</h3>
+                <p id="newRequests">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Pending Requests</h3>
+                <p id="pendingRequests">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Completed Requests</h3>
+                <p id="completedRequests">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Rejected Requests</h3>
+                <p id="rejectedRequests">0</p>
+            </div>
+        </div>
+
+        <h2>Request List</h2>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search for a request..." />
+            <select id="statusFilter">
+                <option value="">All Requests</option>
+                <option value="New">New</option>
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+            <select id="priorityFilter">
+                <option value="">All Priorities</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+            <button onclick="filterRequests()">Search</button>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTable('all')">All Requests</div>
+            <div class="tab" onclick="showTable('supervisor')">Supervisor Requests</div>
+            <div class="tab" onclick="showTable('my')">My Requests</div>
+        </div>
+
+        <div id="allRequests" class="request-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Requester</th>
+                        <th>Assignee</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Current Department</th>
+                        <th>Next Department</th>
+                    </tr>
+                </thead>
+                <tbody id="allRequestTableBody">
+                    <!-- Dynamic rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="myRequests" class="request-table" style="display:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Requester</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Next Department</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="myRequestTableBody">
+                    <!-- Dynamic rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="supervisorRequests" class="request-table" style="display:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Requester</th>
+                        <th>Assignee</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Current Department</th>
+                        <th>Next Department</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="supervisorRequestTableBody">
+                    <!-- Dynamic rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="addRequestModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('addRequestModal').style.display='none'">&times;</span>
+            <h2>Add New Request</h2>
+            <form id="requestForm" onsubmit="addRequest(); return false;">
+                <label for="requester">Requester:</label>
+                <input type="text" id="requester" required>
+
+                <label for="assignee">Assignee:</label>
+                <input type="text" id="assignee">
+
+                <label for="department">Next Department:</label>
+                <input type="text" id="department" required>
+
+                <label for="requestDate">Request Date:</label>
+                <input type="date" id="requestDate" required>
+
+                <label for="priority">Priority:</label>
+                <select id="priority" required>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+
+                <label for="status">Status:</label>
+                <select id="status" required>
+                    <option value="New">New</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+
+                <label for="dueDate">Due Date:</label>
+                <input type="date" id="dueDate" required>
+
+                <label for="objective">Request Objective:</label>
+                <textarea id="objective" rows="3" required></textarea>
+
+                <button type="submit">Add Request</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function initializeSampleRequests() {
+            const sampleRequests = [
+                {
+                    requester: 'John Doe',
+                    assignee: 'Ahmad Al-Harbi',
+                    department: 'Finance',
+                    requestDate: '2024-09-01',
+                    priority: 'High',
+                    status: 'Pending',
+                    dueDate: '2024-09-10',
+                    objective: 'Request for loan approval.'
+                },
+                {
+                    requester: 'Jane Smith',
+                    assignee: 'Ahmad Al-Harbi',
+                    department: 'HR',
+                    requestDate: '2024-09-02',
+                    priority: 'Medium',
+                    status: 'New',
+                    dueDate: '2024-09-15',
+                    objective: 'Request for leave of absence.'
+                },
+                {
+                    requester: 'Michael Brown',
+                    assignee: 'Supervisor Name',
+                    department: 'IT',
+                    requestDate: '2024-09-03',
+                    priority: 'Low',
+                    status: 'Completed',
+                    dueDate: '2024-09-20',
+                    objective: 'Request for software installation.'
+                },
+                {
+                    requester: 'Emily Davis',
+                    assignee: 'Supervisor Name',
+                    department: 'Marketing',
+                    requestDate: '2024-09-04',
+                    priority: 'High',
+                    status: 'Rejected',
+                    dueDate: '2024-09-25',
+                    objective: 'Request for budget increase.'
+                },
+                {
+                    requester: 'Chris Johnson',
+                    assignee: 'Ahmad Al-Harbi',
+                    department: 'Operations',
+                    requestDate: '2024-09-05',
+                    priority: 'Medium',
+                    status: 'Pending',
+                    dueDate: '2024-09-30',
+                    objective: 'Request for equipment purchase.'
+                }
+            ];
+
+            localStorage.setItem('requests', JSON.stringify(sampleRequests));
+        }
+
+        function showTable(table) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.request-table').forEach(table => table.style.display = 'none');
+            
+            if (table === 'all') {
+                document.getElementById('allRequests').style.display = 'block';
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+            } else if (table === 'supervisor') {
+                document.getElementById('supervisorRequests').style.display = 'block';
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+            } else {
+                document.getElementById('myRequests').style.display = 'block';
+                document.querySelector('.tab:nth-child(3)').classList.add('active');
+            }
+        }
+
+        function addRequest() {
+            const requester = document.getElementById('requester').value;
+            const assignee = document.getElementById('assignee').value;
+            
+            // Check if assignee is a supervisor
+            if (assignee.toLowerCase().includes('supervisor')) {
+                alert("The assignee cannot be a supervisor.");
+                return; // Exit the function if the check fails
+            }
+            
+            const department = document.getElementById('department').value;
+            const requestDate = document.getElementById('requestDate').value;
+            const priority = document.getElementById('priority').value;
+            const status = document.getElementById('status').value;
+            const dueDate = document.getElementById('dueDate').value;
+            const objective = document.getElementById('objective').value;
+
+            const requestData = {
+                requester,
+                assignee,
+                department,
+                requestDate,
+                priority,
+                status,
+                dueDate,
+                objective
+            };
+
+            let requests = JSON.parse(localStorage.getItem('requests')) || [];
+            requests.push(requestData);
+            localStorage.setItem('requests', JSON.stringify(requests));
+
+            alert('Request added successfully!');
+            document.getElementById('addRequestModal').style.display = 'none';
+            loadRequests(); // Load requests after adding
+            updateStatistics(); // Update statistics
+        }
+
+        function loadRequests() {
+            let requests = JSON.parse(localStorage.getItem('requests')) || [];
+            const allRequestTableBody = document.getElementById('allRequestTableBody');
+            const supervisorRequestTableBody = document.getElementById('supervisorRequestTableBody');
+            const myRequestTableBody = document.getElementById('myRequestTableBody');
+            
+            allRequestTableBody.innerHTML = '';
+            supervisorRequestTableBody.innerHTML = ''; 
+            myRequestTableBody.innerHTML = ''; 
+
+            requests.forEach((req, index) => {
+                // Populate All Requests table
+                const allRow = document.createElement('tr');
+                allRow.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${req.requester}</td>
+                    <td>${req.assignee || 'N/A'}</td>
+                    <td>${req.requestDate}</td>
+                    <td class="status ${req.status.toLowerCase()}">${req.status}</td>
+                    <td>${req.priority}</td>
+                    <td>${req.department}</td>
+                    <td>Next Department</td>
+                `;
+                allRequestTableBody.appendChild(allRow);
+
+                // Populate My Requests table
+                if (req.assignee === 'Ahmad Al-Harbi') {
+                    const myRow = document.createElement('tr');
+                    myRow.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${req.requester}</td>
+                        <td>${req.requestDate}</td>
+                        <td class="status ${req.status.toLowerCase()}">${req.status}</td>
+                        <td>${req.priority}</td>
+                        <td>Next Department</td>
+                        <td>
+                            <select onchange="processRequest(${index}, this.value)">
+                                <option value="">Select Action</option>
+                                <option value="Complete">Complete</option>
+                                <option value="Reject">Reject</option>
+                                <option value="Pending">Pending</option>
+                            </select>
+                        </td>
+                    `;
+                    myRequestTableBody.appendChild(myRow);
+                }
+
+                // Populate Supervisor Requests table
+                const supervisorRow = document.createElement('tr');
+                supervisorRow.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${req.requester}</td>
+                    <td>${req.assignee || 'N/A'}</td>
+                    <td>${req.requestDate}</td>
+                    <td class="status ${req.status.toLowerCase()}">${req.status}</td>
+                    <td>${req.priority}</td>
+                    <td>${req.department}</td>
+                    <td>Next Department</td>
+                    <td>
+                        <select onchange="processRequest(${index}, this.value)">
+                            <option value="">Select Action</option>
+                            <option value="Complete">Complete</option>
+                            <option value="Reject">Reject</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </td>
+                `;
+                supervisorRequestTableBody.appendChild(supervisorRow);
+            });
+
+            updateStatistics(); // Update statistics whenever requests are loaded
+        }
+
+        function filterRequests() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+
+            let requests = JSON.parse(localStorage.getItem('requests')) || [];
+            let filteredRequests = requests.filter(req => {
+                return (
+                    (!statusFilter || req.status === statusFilter) &&
+                    (!priorityFilter || req.priority === priorityFilter) &&
+                    req.requester.toLowerCase().includes(searchInput)
+                );
+            });
+
+            const allRequestTableBody = document.getElementById('allRequestTableBody');
+            allRequestTableBody.innerHTML = '';
+            filteredRequests.forEach((req, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${req.requester}</td>
+                    <td>${req.assignee || 'N/A'}</td>
+                    <td>${req.requestDate}</td>
+                    <td class="status ${req.status.toLowerCase()}">${req.status}</td>
+                    <td>${req.priority}</td>
+                    <td>${req.department}</td>
+                    <td>Next Department</td>
+                `;
+                allRequestTableBody.appendChild(row);
+            });
+
+            updateStatistics(); // Update statistics after filtering requests
+        }
+
+        function processRequest(id, action) {
+            if (action) {
+                let requests = JSON.parse(localStorage.getItem('requests')) || [];
+                
+                // Update the request status based on the selected action
+                if (action === "Complete") {
+                    requests[id].status = "Completed";
+                } else if (action === "Reject") {
+                    requests[id].status = "Rejected";
+                } else if (action === "Pending") {
+                    requests[id].status = "Pending";
+
+                    // Logic for Pendinging the request can be added here
+                }
+
+                localStorage.setItem('requests', JSON.stringify(requests));
+                loadRequests(); // Reload requests to reflect changes
+                updateStatistics(); // Update statistics after processing a request
+            }
+        }
+
+        function updateStatistics() {
+            let requests = JSON.parse(localStorage.getItem('requests')) || [];
+            const totalRequests = requests.length;
+            const newRequests = requests.filter(req => req.status === 'New').length;
+            const pendingRequests = requests.filter(req => req.status === 'Pending').length;
+            const completedRequests = requests.filter(req => req.status === 'Completed').length;
+            const rejectedRequests = requests.filter(req => req.status === 'Rejected').length;
+
+            document.getElementById('totalRequests').innerText = totalRequests;
+            document.getElementById('newRequests').innerText = newRequests;
+            document.getElementById('pendingRequests').innerText = pendingRequests;
+            document.getElementById('completedRequests').innerText = completedRequests;
+            document.getElementById('rejectedRequests').innerText = rejectedRequests;
+        }
+
+        // Load requests on page load
+        window.onload = function() {
+            initializeSampleRequests();
+            loadRequests();
+        };
+    </script>
+</body>
+</html>
